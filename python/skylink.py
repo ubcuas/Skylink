@@ -1,43 +1,71 @@
-import time
-import socket
+import asyncio
 import json
+import socket
+import threading
+import time
 
-from pymavlink import mavutil
 from argparse import ArgumentParser
+from pymavlink import mavutil
 
-parser = ArgumentParser(description=__doc__)
-parser.add_argument("srcport", type=int)
-parser.add_argument("dstport", type=int)
+jsonmsg = ""
+jsonmsg_lock = threading.Lock()
 
-args = parser.parse_args()
+def start_background_eventloop(loop: asyncio.AbstractEventLoop) -> None:
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
 
-msrc = mavutil.mavlink_connection('tcp:172.17.0.2:{}'.format(args.srcport), planner_format=False,
-                                  notimestamps=True,
-                                  robust_parsing=True)
+async def telemserver(reader, writer):
+    global jsonmsg
+    while True:
+        with jsonmsg_lock:
+            if type(jsonmsg) != type("str"):
+                writer.write(jsonmsg)
+        await writer.drain()
+        await asyncio.sleep(1)
+    writer.close()
 
-mdst = mavutil.mavlink_connection('tcpin:0.0.0.0:{}'.format(args.dstport), planner_format=False,
-                                  notimestamps=True,
-                                  robust_parsing=True)
+async def telemserver_main(host, port):
+    server = await asyncio.start_server(telemserver, host, port)
+    await server.serve_forever()
 
-uas_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-uas_socket.bind(('0.0.0.0', 5555))
-uas_socket.listen()
-conn, addr = uas_socket.accept()
+def passthrough_main() -> None:
+    global jsonmsg
+    msrc = mavutil.mavlink_connection('tcp:172.17.0.2:{}'.format(args.srcport), planner_format=False,
+                                      notimestamps=True,
+                                      robust_parsing=True)
 
-while True:
-    # SRC -> DEST
-    src_msg = msrc.recv()
-    if type(src_msg) != type("str"):
-        mdst.write(src_msg)
+    mdst = mavutil.mavlink_connection('tcpin:0.0.0.0:{}'.format(args.dstport), planner_format=False,
+                                      notimestamps=True,
+                                      robust_parsing=True)
 
-    # DEST -> SRC
-    dst_msg = mdst.recv()
-    if type(dst_msg) != type("str"):
-        msrc.write(dst_msg)
+    while True:
+        # SRC -> DEST
+        src_msg = msrc.recv()
+        if type(src_msg) != type("str"):
+            mdst.write(src_msg)
 
-    msg = msrc.mav.parse_char(src_msg)
+        # DEST -> SRC
+        dst_msg = mdst.recv()
+        if type(dst_msg) != type("str"):
+            msrc.write(dst_msg)
 
-    if msg and msg.get_type() == 'GPS_RAW_INT':
-        print(msg.lat, msg.lon)
-        conn.sendall(json.dumps({'lat': msg.lat, 'lon': msg.lon}).encode('UTF-8'))
-        conn.sendall("\n".encode('UTF-8'))
+        msg = msrc.mav.parse_char(src_msg)
+
+        if msg and msg.get_type() == 'GPS_RAW_INT':
+            jsonmsg_str = json.dumps({'lat': msg.lat, 'lon': msg.lon}) + "\n"
+            with jsonmsg_lock:
+                jsonmsg = jsonmsg_str.encode('UTF-8')
+
+if __name__ == "__main__":
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument("srcport", type=int)
+    parser.add_argument("dstport", type=int)
+    parser.add_argument("telemport", type=int)
+    args = parser.parse_args()
+
+    loop = asyncio.new_event_loop()
+    t = threading.Thread(target=start_background_eventloop, args=(loop,), daemon=True)
+    t.start()
+    telem_output_task = asyncio.run_coroutine_threadsafe(telemserver_main("0.0.0.0", args.telemport), loop)
+
+    passthrough_main()
