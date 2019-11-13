@@ -14,6 +14,7 @@ def start_background_eventloop(loop: asyncio.AbstractEventLoop) -> None:
     asyncio.set_event_loop(loop)
     loop.run_forever()
 
+
 async def telemserver(reader, writer):
     global jsonmsg
     while True:
@@ -24,9 +25,11 @@ async def telemserver(reader, writer):
         await asyncio.sleep(1)
     writer.close()
 
+
 async def telemserver_main(host, port):
     server = await asyncio.start_server(telemserver, host, port)
     await server.serve_forever()
+
 
 def passthrough_main() -> None:
     global jsonmsg
@@ -37,6 +40,9 @@ def passthrough_main() -> None:
     mdst = mavutil.mavlink_connection('tcpin:0.0.0.0:{}'.format(args.dstport), planner_format=False,
                                       notimestamps=True,
                                       robust_parsing=True)
+
+    # Trigger sending GPS data streams once a second until the GCS connects
+    msrc.mav.request_data_stream_send(msrc.target_system, msrc.target_component, mavutil.mavlink.MAV_DATA_STREAM_ALL, 1, 1)
 
     while True:
         # SRC -> DEST
@@ -55,6 +61,8 @@ def passthrough_main() -> None:
             jsonmsg_str = json.dumps({'lat': msg.lat, 'lon': msg.lon}) + "\n"
             with jsonmsg_lock:
                 jsonmsg = jsonmsg_str.encode('UTF-8')
+            last_updated = time.time()
+
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
