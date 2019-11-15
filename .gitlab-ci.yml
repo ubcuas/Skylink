@@ -14,10 +14,18 @@ variables:
   GIT_STRATEGY: fetch
   GIT_SUBMODULE_STRATEGY: recursive
 
-Build:
+Build x64:
   stage: build
   tags:
     - docker
+  script:
+    - docker build ./python -t skylinkpy
+
+Build ARM:
+  stage: build
+  tags:
+    - ubcuas
+    - arm
   script:
     - docker build ./python -t skylinkpy
 
