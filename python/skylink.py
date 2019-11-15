@@ -31,6 +31,16 @@ async def telemserver_main(host, port):
     await server.serve_forever()
 
 
+def msg_to_json_str(msg):
+    return json.dumps({'latitude': msg.lat,
+                       'longitude': msg.lon,
+                       'altitude_agl_meters': msg.relative_alt,
+                       'altitude_msl_meters': msg.alt,
+                       'heading_degrees': msg.hdg,
+                       'timestamp_telem': msg.time_boot_ms,
+                       'timestamp_msg': int(time.time()*1000)})
+
+
 def passthrough_main() -> None:
     global jsonmsg
     msrc = mavutil.mavlink_connection('tcp:172.17.0.2:{}'.format(args.srcport), planner_format=False,
@@ -57,8 +67,8 @@ def passthrough_main() -> None:
 
         msg = msrc.mav.parse_char(src_msg)
 
-        if msg and msg.get_type() == 'GPS_RAW_INT':
-            jsonmsg_str = json.dumps({'lat': msg.lat, 'lon': msg.lon}) + "\n"
+        if msg and msg.get_type() == 'GLOBAL_POSITION_INT':
+            jsonmsg_str = msg_to_json_str(msg) + "\n"
             with jsonmsg_lock:
                 jsonmsg = jsonmsg_str.encode('UTF-8')
             last_updated = time.time()
