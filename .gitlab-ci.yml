@@ -1,0 +1,36 @@
+# UBCUAS Gitlab-CI configuration
+
+image: docker
+
+services:
+  - docker:dind
+
+before_script:
+  - apk add --no-cache bash
+
+variables:
+  LC_ALL: 'C.UTF-8'
+  LANG: 'C.UTF-8'
+  GIT_STRATEGY: fetch
+  GIT_SUBMODULE_STRATEGY: recursive
+
+Build x64:
+  stage: build
+  tags:
+    - docker
+  script:
+    - docker build ./python -t skylinkpy
+
+Build ARM:
+  stage: build
+  tags:
+    - ubcuas
+    - arm
+  script:
+    - docker build ./python -t skylinkpy
+
+Final:
+  stage: deploy
+  script:
+  - echo "Done!"
+  when: on_success
