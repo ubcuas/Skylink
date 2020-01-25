@@ -27,6 +27,7 @@ async def telemserver(reader, writer):
 
 
 async def telemserver_main(host, port):
+    print(f"Starting telemetry server on {host}:{port}")
     server = await asyncio.start_server(telemserver, host, port)
     await server.serve_forever()
 
@@ -43,13 +44,18 @@ def msg_to_json_str(msg):
 
 def passthrough_main() -> None:
     global jsonmsg
-    msrc = mavutil.mavlink_connection('tcp:172.17.0.2:{}'.format(args.srcport), planner_format=False,
+
+    print(f"Starting passthrough loop from {args.srcurl}:{args.srcport} --> 0.0.0.0:{args.dstport}")
+
+    msrc = mavutil.mavlink_connection(f"tcp:{args.srcurl}:{args.srcport}", planner_format=False,
                                       notimestamps=True,
                                       robust_parsing=True)
 
-    mdst = mavutil.mavlink_connection('tcpin:0.0.0.0:{}'.format(args.dstport), planner_format=False,
+    mdst = mavutil.mavlink_connection(f"tcpin:0.0.0.0:{args.dstport}", planner_format=False,
                                       notimestamps=True,
                                       robust_parsing=True)
+
+    print("Passthrough loop connected")
 
     # Trigger sending GPS data streams once a second until the GCS connects
     msrc.mav.request_data_stream_send(msrc.target_system, msrc.target_component, mavutil.mavlink.MAV_DATA_STREAM_ALL, 1, 1)
@@ -76,6 +82,7 @@ def passthrough_main() -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
+    parser.add_argument("srcurl", type=str)
     parser.add_argument("srcport", type=int)
     parser.add_argument("dstport", type=int)
     parser.add_argument("telemport", type=int)

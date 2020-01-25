@@ -5,3 +5,5 @@ WORKDIR /uas/skylink
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
+COPY skylink.py .
