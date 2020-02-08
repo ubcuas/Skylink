@@ -45,9 +45,9 @@ def msg_to_json_str(msg):
 def passthrough_main() -> None:
     global jsonmsg
 
-    print(f"Starting passthrough loop from {args.srcurl}:{args.srcport} --> 0.0.0.0:{args.dstport}")
+    print(f"Starting passthrough loop from {args.srcstring} --> 0.0.0.0:{args.dstport}")
 
-    msrc = mavutil.mavlink_connection(f"tcp:{args.srcurl}:{args.srcport}", planner_format=False,
+    msrc = mavutil.mavlink_connection(f"{args.srcstring}", planner_format=False,
                                       notimestamps=True,
                                       robust_parsing=True)
 
@@ -82,8 +82,7 @@ def passthrough_main() -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument("srcurl", type=str)
-    parser.add_argument("srcport", type=int)
+    parser.add_argument("srcstring", type=str)
     parser.add_argument("dstport", type=int)
     parser.add_argument("telemport", type=int)
     args = parser.parse_args()
