@@ -7,15 +7,23 @@ import time
 from argparse import ArgumentParser
 from pymavlink import mavutil
 
+class ZeroObj:
+    """Create an object type that returns '0' for any attributes"""
+    def __getattr__(self, name):
+        return 0
+
 jsonmsg = ""
 jsonmsg_lock = threading.Lock()
+
+attitude_msg = ZeroObj()
+attitude_msg_lock = threading.Lock()
 
 def start_background_eventloop(loop: asyncio.AbstractEventLoop) -> None:
     asyncio.set_event_loop(loop)
     loop.run_forever()
 
 
-async def telemserver(reader, writer):
+async def telemserver(reader, writer) -> None:
     global jsonmsg
     while True:
         with jsonmsg_lock:
@@ -26,24 +34,36 @@ async def telemserver(reader, writer):
     writer.close()
 
 
-async def telemserver_main(host, port):
+async def telemserver_main(host, port) -> None:
     print(f"Starting telemetry server on {host}:{port}")
     server = await asyncio.start_server(telemserver, host, port)
     await server.serve_forever()
 
 
-def msg_to_json_str(msg):
-    return json.dumps({'latitude': msg.lat,
-                       'longitude': msg.lon,
-                       'altitude_agl_meters': msg.relative_alt,
-                       'altitude_msl_meters': msg.alt,
-                       'heading_degrees': msg.hdg,
-                       'timestamp_telem': msg.time_boot_ms,
-                       'timestamp_msg': int(time.time()*1000)})
+def msg_to_json_str(msg) -> str:
+    global attitude_msg
+    with attitude_msg_lock:
+        return json.dumps({'latitude': msg.lat,
+                            'longitude': msg.lon,
+                            'altitude_agl_meters': msg.relative_alt,
+                            'altitude_msl_meters': msg.alt,
+                            'heading_degrees': msg.hdg,
+                            'velocity_x_cm_s': msg.vx,
+                            'velocity_y_cm_s': msg.vy,
+                            'velocity_z_cm_s': msg.vz,
+                            'roll_rad': attitude_msg.roll,
+                            'pitch_rad': attitude_msg.pitch,
+                            'yaw_rad': attitude_msg.yaw,
+                            'rollspeed_rad_s': attitude_msg.rollspeed,
+                            'pitchspeed_rad_s': attitude_msg.pitchspeed,
+                            'yawspeed_rad_s': attitude_msg.yawspeed,
+                            'timestamp_telem': msg.time_boot_ms,
+                            'timestamp_msg': int(time.time()*1000)})
 
 
 def passthrough_main() -> None:
     global jsonmsg
+    global attitude_msg
 
     print(f"Starting passthrough loop from {args.srcstring} --> 0.0.0.0:{args.dstport}")
 
@@ -72,6 +92,10 @@ def passthrough_main() -> None:
             msrc.write(dst_msg)
 
         msg = msrc.mav.parse_char(src_msg)
+
+        if msg and msg.get_type() == 'ATTITUDE':
+          with attitude_msg_lock:
+            attitude_msg = msg
 
         if msg and msg.get_type() == 'GLOBAL_POSITION_INT':
             jsonmsg_str = msg_to_json_str(msg) + "\n"
