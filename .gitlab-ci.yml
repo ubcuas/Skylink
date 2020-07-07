@@ -19,15 +19,16 @@ Build x64:
   tags:
     - docker
   script:
-    - docker build ./python -t skylinkpy
+    - docker build . -t skylink
 
-Build ARM:
-  stage: build
-  tags:
-    - ubcuas
-    - arm
-  script:
-    - docker build ./python -t skylinkpy
+## ARM builds are currently disabled (Contact Eric Mikulin)
+# Build ARM:
+#   stage: build
+#   tags:
+#     - ubcuas
+#     - arm
+#   script:
+#     - docker build . -t skylink
 
 Final:
   stage: deploy
