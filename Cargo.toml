@@ -1,8 +1,10 @@
 [package]
 name = "skylink"
 version = "0.1.0"
-authors = ["Eric Mikulin <ericm99@gmail.com>"]
 edition = "2018"
+authors = ["Eric Mikulin"]
+readme = "README.md"
 
 [dependencies]
-mavlink = "0.8"
+clap = "2.33.1"
+mavlink = { version = "0.8.5", features = ["default", "ardupilotmega"] }
