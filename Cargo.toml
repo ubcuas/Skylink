@@ -6,5 +6,6 @@ authors = ["Eric Mikulin"]
 readme = "README.md"
 
 [dependencies]
-clap = "2.33.1"
-mavlink = { version = "0.8.5", features = ["default", "ardupilotmega"] }
+clap = { version = "2.33.1", features = ["yaml"] }
+crossbeam = "0.7.3"
+mavlink = { version = "0.8.5", features = ["ardupilotmega"] }
