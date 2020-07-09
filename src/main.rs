@@ -1,6 +1,7 @@
 use clap::{load_yaml, App};
 use crossbeam::crossbeam_channel;
 use mavlink;
+use ruuas::telem;
 use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -38,9 +39,30 @@ fn telemetry_server(
                     match common_msg {
                         mavlink::common::MavMessage::GLOBAL_POSITION_INT(gpi_data) => {
                             let mut conn_pool = conn_pool.lock().unwrap();
+
                             for mut conn in conn_pool.iter() {
-                                let data = format!("HELLO! {}\n", gpi_data.time_boot_ms);
-                                conn.write_all(data.as_bytes());
+                                let telem_args = telem::TelemetryArgs {
+                                    latitude: gpi_data.lat,
+                                    longitude: gpi_data.lon,
+                                    altitude_agl_meters: gpi_data.relative_alt as i32,
+                                    altitude_msl_meters: gpi_data.alt as i32,
+                                    heading_degrees: gpi_data.hdg as u32,
+                                    velocity_x_cm_s: gpi_data.vx as i32,
+                                    velocity_y_cm_s: gpi_data.vy as i32,
+                                    velocity_z_cm_s: gpi_data.vz as i32,
+                                    timestamp_telem_ms: gpi_data.time_boot_ms as u64,
+                                    /* EMPTY RN */
+                                    roll_rad: 0.0,
+                                    pitch_rad: 0.0,
+                                    yaw_rad: 0.0,
+                                    rollspeed_rad_s: 0.0,
+                                    pitchspeed_rad_s: 0.0,
+                                    yawspeed_rad_s: 0.0,
+                                    timestamp_msg_ms: 0,
+                                };
+                                let msg = telem::new_telem_msg(telem_args);
+                                let data = telem::serialize_telem_msg(msg);
+                                conn.write_all(&data);
                             }
                         }
                         _ => {}

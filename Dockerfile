@@ -1,4 +1,4 @@
-FROM rust:latest as build
+FROM ubcuas/rustuuas:latest as build
 
 RUN mkdir -p /uas/skylink
 WORKDIR /uas/skylink
@@ -9,7 +9,7 @@ COPY src/ ./src/
 RUN cargo build --release
 
 
-FROM debian:latest as runner
+FROM ubcuas/rustuuas:latest as runner
 
 RUN mkdir -p /uas/skylink
 WORKDIR /uas/skylink
