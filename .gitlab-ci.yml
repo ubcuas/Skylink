@@ -6,7 +6,7 @@ services:
   - docker:dind
 
 before_script:
-  - apk add --no-cache bash
+  - apk add --no-cache bash make
 
 variables:
   LC_ALL: 'C.UTF-8'
@@ -19,7 +19,7 @@ Build x64:
   tags:
     - docker
   script:
-    - docker build . -t skylink
+    - make docker
 
 ## ARM builds are currently disabled (Contact Eric Mikulin)
 # Build ARM:
