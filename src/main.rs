@@ -2,7 +2,7 @@ use clap::{load_yaml, App};
 use crossbeam::crossbeam_channel;
 use mavlink;
 use ruuas::telem;
-use std::io::Write;
+use std::io::{Read, Write, Error, ErrorKind};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -77,13 +77,13 @@ fn telemetry_server(
     }
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let arg_yml = load_yaml!("cli.yml");
     let matches = App::from(arg_yml).get_matches();
 
     let mavsrc_string = matches.value_of("mavsrc").unwrap().to_string();
     let mavdest_port = matches.value_of("mavdest").unwrap().parse::<u32>().unwrap();
-    let mavdest_string = format!("tcpin:0.0.0.0:{}", mavdest_port);
+    let mavdest_string = format!("0.0.0.0:{}", mavdest_port);
     let telemdest_port = matches
         .value_of("telemdest")
         .unwrap()
@@ -95,27 +95,31 @@ fn main() {
         mavsrc_string, mavdest_string
     );
     println!("Starting remote connection...");
-    let mav_src = mavlink::connect::<mavlink::ardupilotmega::MavMessage>(&mavsrc_string).unwrap();
+    let mav_src = TcpStream::connect(&mavsrc_string)?;
 
     println!("Awaiting local connection...");
-    let mav_dest = mavlink::connect::<mavlink::ardupilotmega::MavMessage>(&mavdest_string).unwrap();
+    let mav_dest_listener = TcpListener::bind(&mavdest_string)?;
+    let mav_dest;
+    if let Ok((socket, _addr)) = mav_dest_listener.accept() {
+        mav_dest = socket;
+    } else {
+        return Err(Error::new(ErrorKind::Other, "oh no!"));
+    }
     println!("Loop fully connected");
 
     let mut threads = vec![];
-    let (telemframe_sender, telemframe_reciever) = crossbeam_channel::unbounded();
+    // let (telemframe_sender, telemframe_reciever) = crossbeam_channel::unbounded();
 
-    let vehicle = Arc::new(mav_src);
-    let gcs = Arc::new(mav_dest);
+    let vehicle = Arc::new(Mutex::new(mav_src));
+    let gcs = Arc::new(Mutex::new(mav_dest));
 
     threads.push(thread::spawn({
         let vehicle = vehicle.clone();
         let gcs = gcs.clone();
         move || loop {
-            if let Ok((msg_header, msg_data)) = vehicle.recv() {
-                println!("m1: {:?} {:?}", msg_header, msg_data);
-                gcs.send(&msg_header, &msg_data).unwrap();
-                telemframe_sender.send(msg_data);
-            }
+            let mut buf: [u8; 1024] = [0; 1024];
+            let bytes_read: usize = vehicle.lock().unwrap().read(&mut buf).unwrap();
+            gcs.lock().unwrap().write_all(&buf[..bytes_read]).unwrap();
         }
     }));
 
@@ -123,18 +127,19 @@ fn main() {
         let vehicle = vehicle.clone();
         let gcs = gcs.clone();
         move || loop {
-            if let Ok((msg_header, msg_data)) = gcs.recv() {
-                println!("m2: {:?} {:?}", msg_header, msg_data);
-                vehicle.send(&msg_header, &msg_data).unwrap();
-            }
+            let mut buf: [u8; 1024] = [0; 1024];
+            let bytes_read: usize = gcs.lock().unwrap().read(&mut buf).unwrap();
+            vehicle.lock().unwrap().write_all(&buf[..bytes_read]).unwrap();
         }
     }));
 
-    threads.push(thread::spawn(move || {
-        telemetry_server(telemdest_port, telemframe_reciever)
-    }));
+    // threads.push(thread::spawn(move || {
+    //     telemetry_server(telemdest_port, telemframe_reciever)
+    // }));
 
     for thread in threads {
         thread.join().unwrap();
     }
+
+    return Ok(());
 }
