@@ -1,0 +1,26 @@
+name: skylink
+version: 0.1.0
+about: Everyone gets telemetry!
+
+settings:
+  - ArgRequiredElseHelp
+  - ColoredHelp
+
+args:
+    - mavsrc:
+        value_name: MAVLINK_SRC
+        help: Mavlink source input string.
+        required: true
+        index: 1
+
+    - mavdest:
+        value_name: MAVLINK_DEST_PORT
+        help: Mavlink destination server port.
+        required: true
+        index: 2
+
+    - telemdest:
+        value_name: TELEMETRY_DEST_PORT
+        help: Telemtry server port.
+        required: true
+        index: 3
