@@ -14,24 +14,27 @@ variables:
   GIT_STRATEGY: fetch
   GIT_SUBMODULE_STRATEGY: recursive
 
-Build x64:
+Build Docker x64:
   stage: build
   tags:
     - docker
   script:
     - make docker
 
-## ARM builds are currently disabled (Contact Eric Mikulin)
-# Build ARM:
-#   stage: build
-#   tags:
-#     - ubcuas
-#     - arm
-#   script:
-#     - docker build . -t skylink
-
-Final:
-  stage: deploy
+UnitTest Docker x64:
+  stage: test
+  tags:
+    - docker
   script:
-  - echo "Done!"
+    - make ci-test
+
+Publish Docker x64:
+  stage: deploy
+  tags:
+    - docker
+  script:
+    - docker login -u "$DOCKER_HUB_USER" -p "$DOCKER_HUB_PASSWORD"
+    - make docker-publish
   when: on_success
+  only:
+    - master

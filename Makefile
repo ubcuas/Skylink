@@ -9,6 +9,13 @@ build:
 build-release:
 	cargo build --release
 
+## Test ##
+test:
+	cargo test
+
+test-release:
+	cargo test --release
+
 ## Cleanup ##
 clean:
 	cargo clean
@@ -23,3 +30,8 @@ docker:
 
 docker-publish: docker
 	docker push ubcuas/skylink:latest
+
+## CI ##
+ci-test:
+	docker build . --target build -t ubcuas/skylink:test
+	docker run ubcuas/skylink:test cargo test --release
