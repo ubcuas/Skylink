@@ -21,6 +21,32 @@ struct TelemetryServerArgs {
     buffer_reciever: crossbeam_channel::Receiver<BufferFrame>,
 }
 
+fn send_telem_to_connections(
+    conn_pool: &Arc<Mutex<Vec<TcpStream>>>,
+    disconnected_clients: &mut Vec<usize>,
+    mavtelem_args: ruuas::telem::MavlinkTelemetryArgs,
+) {
+    let msg = telem::new_telem_msg(telem::TelemetryArgs::from_mavlinkargs(mavtelem_args));
+    let data = telem::serialize_telem_msg(msg);
+
+    let mut conn_pool = conn_pool.lock().unwrap();
+    for (i, mut conn) in conn_pool.iter().enumerate() {
+        match conn.write_all(&data) {
+            // If it fails for a disconnection, remove it from the pool (after loop finishes).
+            Err(ref e) if e.kind() == ErrorKind::BrokenPipe => {
+                println!("Telem client disconnect");
+                disconnected_clients.push(i);
+            }
+            // No matter what else, we move on
+            _ => {}
+        };
+    }
+
+    for conn in disconnected_clients.drain(..) {
+        conn_pool.remove(conn);
+    }
+}
+
 fn telemetry_server(args: TelemetryServerArgs) -> std::io::Result<()> {
     let mut threads = vec![];
     let connections = Arc::new(Mutex::new(vec![]));
@@ -49,6 +75,8 @@ fn telemetry_server(args: TelemetryServerArgs) -> std::io::Result<()> {
         let mut byte_buffer: Vec<u8> = Vec::new();
         let mut disconnected_clients: Vec<usize> = Vec::new();
 
+        let mut mavtelem_args = telem::MavlinkTelemetryArgs::default();
+
         move || loop {
             if let Ok(bufframe) = buffer_reciever.recv() {
                 if bufframe.new_stream == true {
@@ -62,44 +90,35 @@ fn telemetry_server(args: TelemetryServerArgs) -> std::io::Result<()> {
                     if let Ok((_parsed_header, parsed_msg)) = mavlink::read_v2_msg(&mut buff) {
                         match parsed_msg {
                             mavlink::common::MavMessage::GLOBAL_POSITION_INT(gpi_data) => {
-                                let mut conn_pool = conn_pool.lock().unwrap();
+                                mavtelem_args.latitude = gpi_data.lat;
+                                mavtelem_args.longitude = gpi_data.lon;
+                                mavtelem_args.altitude_agl_mm = gpi_data.relative_alt;
+                                mavtelem_args.altitude_msl_mm = gpi_data.alt;
+                                mavtelem_args.heading_cdeg = gpi_data.hdg;
+                                mavtelem_args.velocityx_cm_s = gpi_data.vx;
+                                mavtelem_args.velocityy_cm_s = gpi_data.vy;
+                                mavtelem_args.velocityz_cm_s = gpi_data.vz;
 
-                                for (i, mut conn) in conn_pool.iter().enumerate() {
-                                    let telem_args = telem::TelemetryArgs {
-                                        latitude: gpi_data.lat,
-                                        longitude: gpi_data.lon,
-                                        altitude_agl_meters: gpi_data.relative_alt as i32,
-                                        altitude_msl_meters: gpi_data.alt as i32,
-                                        heading_degrees: gpi_data.hdg as u32,
-                                        velocity_x_cm_s: gpi_data.vx as i32,
-                                        velocity_y_cm_s: gpi_data.vy as i32,
-                                        velocity_z_cm_s: gpi_data.vz as i32,
-                                        timestamp_telem_ms: gpi_data.time_boot_ms as u64,
-                                        /* EMPTY RN */
-                                        roll_rad: 0.0,
-                                        pitch_rad: 0.0,
-                                        yaw_rad: 0.0,
-                                        rollspeed_rad_s: 0.0,
-                                        pitchspeed_rad_s: 0.0,
-                                        yawspeed_rad_s: 0.0,
-                                        timestamp_msg_ms: 0,
-                                    };
-                                    let msg = telem::new_telem_msg(telem_args);
-                                    let data = telem::serialize_telem_msg(msg);
-                                    match conn.write_all(&data) {
-                                        // If it fails for a disconnection, remove it from the pool (after loop finishes).
-                                        Err(ref e) if e.kind() == ErrorKind::BrokenPipe => {
-                                            println!("Telem client disconnect");
-                                            disconnected_clients.push(i);
-                                        }
-                                        // No matter what else, we move on
-                                        _ => {}
-                                    };
-                                }
+                                send_telem_to_connections(
+                                    &conn_pool,
+                                    &mut disconnected_clients,
+                                    mavtelem_args.clone(),
+                                );
+                            }
+                            mavlink::common::MavMessage::ATTITUDE(attitude_data) => {
+                                mavtelem_args.roll_rad = attitude_data.roll;
+                                mavtelem_args.pitch_rad = attitude_data.pitch;
+                                mavtelem_args.yaw_rad = attitude_data.yaw;
+                                mavtelem_args.rollspeed_rad_s = attitude_data.rollspeed;
+                                mavtelem_args.pitchspeed_rad_s = attitude_data.pitchspeed;
+                                mavtelem_args.yawspeed_rad_s = attitude_data.yawspeed;
+                                mavtelem_args.timestamp_pixhawk_ms = attitude_data.time_boot_ms;
 
-                                for conn in disconnected_clients.drain(..) {
-                                    conn_pool.remove(conn);
-                                }
+                                send_telem_to_connections(
+                                    &conn_pool,
+                                    &mut disconnected_clients,
+                                    mavtelem_args.clone(),
+                                );
                             }
                             _ => {}
                         }
