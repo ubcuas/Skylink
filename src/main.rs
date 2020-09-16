@@ -90,8 +90,8 @@ fn telemetry_server(args: TelemetryServerArgs) -> std::io::Result<()> {
                     if let Ok((_parsed_header, parsed_msg)) = mavlink::read_v2_msg(&mut buff) {
                         match parsed_msg {
                             mavlink::common::MavMessage::GLOBAL_POSITION_INT(gpi_data) => {
-                                mavtelem_args.latitude = gpi_data.lat;
-                                mavtelem_args.longitude = gpi_data.lon;
+                                mavtelem_args.latitude_dege7 = gpi_data.lat;
+                                mavtelem_args.longitude_dege7 = gpi_data.lon;
                                 mavtelem_args.altitude_agl_mm = gpi_data.relative_alt;
                                 mavtelem_args.altitude_msl_mm = gpi_data.alt;
                                 mavtelem_args.heading_cdeg = gpi_data.hdg;
