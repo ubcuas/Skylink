@@ -16,6 +16,7 @@
 
 **Local:**
 - Rust + Cargo
+- Libuuas
 
 ## Installation
 The image can be directly pulled from DockerHub:
