@@ -16,4 +16,4 @@ WORKDIR /uas/skylink
 
 COPY --from=build /uas/skylink/target/release/skylink /uas/skylink/
 
-CMD ["/uas/skylink/skylink"]
+ENTRYPOINT ["/uas/skylink/skylink"]

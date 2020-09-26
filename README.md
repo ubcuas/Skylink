@@ -59,12 +59,12 @@ ARGS:
 
 If you wanted to bridge from the docker UASITL running locally and on port 5670 to port 5050, with telemetry served on port 5555:
 ```
-docker run -p 5555:5555 -p 5050:5050 -it ubcuas/skylink:latest 127.0.0.1:5760 5050 5555
+docker run -p 5555:5555 -p 5050:5050 -it --init ubcuas/skylink:latest 127.0.0.1:5760 5050 5555
 ```
 
 If you wanted to bridge from the RFD900 to port 5050, with telemetry served on port 5555:
 ```
-docker run -p 5555:5555 -p 5050:5050 --device=/dev/ttyUSB0:/dev/ttyUSB0 -it ubcuas/skylink:latest file:/dev/ttyUSB0 5050 5555
+docker run -p 5555:5555 -p 5050:5050 --device=/dev/ttyUSB0:/dev/ttyUSB0 -it --init ubcuas/skylink:latest file:/dev/ttyUSB0 5050 5555
 ```
 
 ## Troubleshooting
