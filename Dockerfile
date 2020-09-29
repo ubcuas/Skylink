@@ -1,4 +1,4 @@
-FROM ubcuas/rustuuas:latest as build
+FROM ubcuas/rustuuas:latest AS builder
 
 RUN mkdir -p /uas/skylink
 WORKDIR /uas/skylink
@@ -9,11 +9,11 @@ COPY src/ ./src/
 RUN cargo build --release
 
 
-FROM ubcuas/rustuuas:latest as runner
+FROM ubcuas/cppuuas:latest AS runner
 
 RUN mkdir -p /uas/skylink
 WORKDIR /uas/skylink
 
-COPY --from=build /uas/skylink/target/release/skylink /uas/skylink/
+COPY --from=builder /uas/skylink/target/release/skylink /uas/skylink/
 
 ENTRYPOINT ["/uas/skylink/skylink"]

@@ -25,13 +25,29 @@ install:
 	cargo install
 
 ## Docker ##
+docker-multiarch-deps:
+	DOCKER_CLI_EXPERIMENTAL=enabled DOCKER_BUILDKIT=enabled docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+	DOCKER_CLI_EXPERIMENTAL=enabled DOCKER_BUILDKIT=enabled docker buildx create --name mubuilder | echo "ok"
+	DOCKER_CLI_EXPERIMENTAL=enabled DOCKER_BUILDKIT=enabled docker buildx use mubuilder
+	DOCKER_CLI_EXPERIMENTAL=enabled DOCKER_BUILDKIT=enabled docker buildx inspect --bootstrap
+
 docker:
-	docker build . -t ubcuas/skylink:latest
+	docker build . --pull=true --tag ubcuas/skylink:latest
 
 docker-publish: docker
 	docker push ubcuas/skylink:latest
 
+docker-multiarch: docker-multiarch-deps
+	DOCKER_CLI_EXPERIMENTAL=enabled \
+	DOCKER_BUILDKIT=enabled \
+	docker buildx build . --pull=true -t ubcuas/skylink:latest --platform "linux/amd64,linux/arm64,linux/arm/v7"
+
+docker-multiarch-publish: docker-multiarch-deps
+	DOCKER_CLI_EXPERIMENTAL=enabled \
+	DOCKER_BUILDKIT=enabled \
+	docker buildx build . --pull=true -t ubcuas/skylink:latest --push --platform "linux/amd64,linux/arm64,linux/arm/v7"
+
 ## CI ##
 ci-test:
-	docker build . --target build -t ubcuas/skylink:test
+	docker build . --pull=true --target build -t ubcuas/skylink:test
 	docker run ubcuas/skylink:test cargo test --release
