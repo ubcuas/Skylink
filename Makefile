@@ -40,12 +40,12 @@ docker-publish: docker
 docker-multiarch: docker-multiarch-deps
 	DOCKER_CLI_EXPERIMENTAL=enabled \
 	DOCKER_BUILDKIT=enabled \
-	docker buildx build . --pull=true -t ubcuas/skylink:latest --platform "linux/amd64,linux/arm64"
+	docker buildx build . --pull=true -t ubcuas/skylink:latest --platform "linux/amd64"
 
 docker-multiarch-publish: docker-multiarch-deps
 	DOCKER_CLI_EXPERIMENTAL=enabled \
 	DOCKER_BUILDKIT=enabled \
-	docker buildx build . --pull=true -t ubcuas/skylink:latest --push --platform "linux/amd64,linux/arm64"
+	docker buildx build . --pull=true -t ubcuas/skylink:latest --push --platform "linux/amd64"
 
 ## CI ##
 ci-test:
