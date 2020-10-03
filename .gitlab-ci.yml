@@ -16,6 +16,7 @@ Build Docker Multiarch:
   stage: build
   tags:
     - docker
+    - ubcuas
   script:
     - make docker-multiarch
 
@@ -30,6 +31,7 @@ Publish Docker Multiarch:
   stage: deploy
   tags:
     - docker
+    - ubcuas
   script:
     - docker login -u "$DOCKER_HUB_USER" -p "$DOCKER_HUB_PASSWORD"
     - make docker-multiarch-publish
