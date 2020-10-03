@@ -49,5 +49,5 @@ docker-multiarch-publish: docker-multiarch-deps
 
 ## CI ##
 ci-test:
-	docker build . --pull=true --target build -t ubcuas/skylink:test
+	docker build . --pull=true --target builder -t ubcuas/skylink:test
 	docker run ubcuas/skylink:test cargo test --release
