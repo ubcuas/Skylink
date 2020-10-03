@@ -1,6 +1,6 @@
 # UBCUAS Gitlab-CI configuration
 
-image: docker
+image: itseris/buildx:latest
 
 services:
   - docker:dind
