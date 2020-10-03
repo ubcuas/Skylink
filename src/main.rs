@@ -51,12 +51,14 @@ fn telemetry_server(args: TelemetryServerArgs) -> std::io::Result<()> {
     let mut threads = vec![];
     let connections = Arc::new(Mutex::new(vec![]));
 
+    println!("Starting telemetry server...");
+
     threads.push(thread::spawn({
         let conn_pool = connections.clone();
         let telem_port = args.telem_port;
 
         move || loop {
-            let connection_string = format!("127.0.0.1:{}", telem_port);
+            let connection_string = format!("0.0.0.0:{}", telem_port);
             let listener = TcpListener::bind(connection_string).unwrap();
 
             for stream in listener.incoming() {
